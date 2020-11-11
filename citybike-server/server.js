@@ -2,7 +2,7 @@ const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
 const citybikeurl = "http://api.citybik.es/v2/networks/decobike-miami-beach"
-const {addCityBikes,  getCityBikes}=require('./utils/cityBykes')
+const {addCityBikes,  getCityBikes,getCityBikesSize}=require('./utils/cityBykes')
 
 
 
@@ -16,6 +16,8 @@ app.use(index);
 const server = http.createServer(app);
 const io = socketIo(server); // < Interesting!
 let interval;
+let size_interval;
+
 
 io.on("connection", socket => {
   var socketId = socket.id;
@@ -23,11 +25,17 @@ io.on("connection", socket => {
   console.log('New connection ' + socketId + ' from ' + clientIp);
   getCityBikeStations(socket)
 
-  interval = setInterval(() => getApiAndEmit(socket), 10000);
-
   socket.on("go_back_time",(index)=>{
-    const {auxList}=  getCityBikes(index)
-    console.log(auxList)
+    const bikeslog=  getCityBikes(index)
+    socket.emit("bikes_time_state",bikeslog)
+  })
+
+  socket.on("get_bikes_list_size",()=>{
+    size_interval = setInterval(() =>   socket.emit("receive_bikes_list_size",  getCityBikesSize()) , 360000000);
+  })
+
+  socket.on("streaming",()=>{
+    interval = setInterval(() => getApiAndEmit(socket), 10000);
   })
 
   socket.on("disconnect", () => {
@@ -40,13 +48,11 @@ const getApiAndEmit = socket => {
   http
   .get(citybikeurl, resp => {
       let data = ''        
-      
-      resp.on('data', chunk => {
+          resp.on('data', chunk => {
           data += chunk
       })        
       .on('end', () => {
           let stations = JSON.parse(data)
-          console.log('cada 10 segundos')
           socket.emit("get_data",stations)
       })
       resp.on('error', (err) => {
@@ -77,9 +83,6 @@ const getCityBikeStations = socket => {
 
   })
 };
-
-
-
 
 server.listen(port, () => console.log(`Listening on port ${port}`));
 

@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import socketIOClient from "socket.io-client";
 import { Map, TileLayer, Marker, Popup } from "react-leaflet";
+import bici from './assets/bicycle.png';
 import 'leaflet/dist/leaflet.css';
 import L from "leaflet";
 
@@ -14,7 +15,7 @@ const customMarker = new L.Icon({
 });
 
 
-
+var socket
 
 class App extends Component {
   constructor() {
@@ -23,77 +24,127 @@ class App extends Component {
     this.state = {
       response: false,
       endpoint: "http://127.0.0.1:4001",
-      lat: 25.790654,
-      lng: -80.1300455,
+      lat: 25.801,
+      lng: -80.18888,
       zoom: 13,
-      bikeMarkers: []
+      bikeMarkers: [],
+      goBackValue:0,
+      stationsTimeSize:0
     };
+
+    socket = socketIOClient(this.state.endpoint);
+    
   }
 
   
   componentDidMount() {
-    const { endpoint } = this.state;
-    const socket = socketIOClient(endpoint);
     socket.on("city_bikes_stations",(data)=>{
-      // console.log(data)
       this.setState({
         bikeMarkers:data,
         response:true
       })
-    })
+    });
+    
+    socket.emit("streaming");
+    socket.emit("get_bikes_list_size");
+
+    socket.on("receive_bikes_list_size",(data)=>{
+      this.setState({
+        stationsTimeSize:data
+      })
+    });
+  
     socket.on("get_data", (data)=>{
       this.setState({
         bikeMarkers:data.network.stations,
         response:true
       })
-      // console.log(data)
     });
   }
 
-  goBackTime() {
-    socket.on()
+
+  goBackStreaming() {
+    socket.emit("streaming");
   }
+
+	handleChanges = (e) => {
+    socket.emit("go_back_time",e.target.value)
+    socket.on("bikes_time_state",(data)=>{
+      console.log(e.target.value)
+      this.setState({
+        bikeMarkers:data,
+        goBackValue:e.target.value
+      })
+    })
+
+  };
 
 
   render() {
-    const { response , bikeMarkers } = this.state;
+    const {goBackValue,  bikeMarkers, stationsTimeSize } = this.state;
     const position = [this.state.lat, this.state.lng]
-    // console.log(bikeMarkers)
-    // console.log(position)
-    // this.state.bikeMarkers.map(data => {
-    //   console.log(data.latitude)
-    // })
+
     return (
       <main>
         <div className="map-container">
-          <div className="map">
+          <div className="city-bikes-header">
             <h1> City Bikes in Miami </h1>
-            <Map center={position} zoom={this.state.zoom}>
-              <TileLayer
-                attribution='&amp;copy <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-
-              {/* {response && bikeMarkers.map(data => 				
-              {
-              return <Marker key={data.id} position={{position: [data.latitude, data.longitude]}} icon={customMarker}></Marker>
-              })}     */}
-              {bikeMarkers.map(({ latitude, longitude, free_bikes, extra}, index) => (
-                <Marker position={[latitude, longitude]} icon={customMarker} key={index}>
-                  <Popup>
-                    {extra.address} has {free_bikes} free bikes.
-                  </Popup>
-                </Marker>
-              ))}
-            </Map>
           </div>
-          <div className='btn'>
-            <button onClick={goBackTime()}>
-              Go Bak in time 1 hour
-            </button>
+          <div className="city-bikes-container">
+            <div id="mapid">
+              <Map center={position} zoom={this.state.zoom}>
+                <TileLayer
+                  attribution='&amp;copy <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {bikeMarkers.map(({ latitude, longitude, free_bikes, extra}, index) => (
+                  <Marker position={[latitude, longitude]} icon={customMarker} key={index}>
+                    <Popup>
+                      {extra.address} has <br/>{free_bikes} free bikes.
+                    </Popup>
+                  </Marker>
+                ))}
+              </Map>
+            </div>
+            <div className="side-bar">
+              <div className="valueSpan">
+                <span className="font-weight-bold text-primary ml-2 valueSpan2">You can use the slider to go back a maximum of 10 hours in the data of the day if it is available.</span>
+              </div>
+
+              <div className="d-flex justify-content-center my-4">
+                  <div className="w-75">
+                    <input type="range" value={goBackValue} className="custom-range" id="customRange11" min="0" max={stationsTimeSize} onChange={this.handleChanges}/>
+                  </div>
+                  <span className="font-weight-bold text-primary ml-2 valueSpan2">{goBackValue}</span>
+              </div>
+
+              <div className="button-div">
+                <button className="real-time-btn" onClick={this.goBackStreaming}>
+                  Real time bikes aviability
+                </button>
+              </div>       
+              <div className='items-station'>
+                
+                {bikeMarkers.map((station,index)=>(
+                    <div className="item-station" key={index} >
+                        <div className="item-image">
+                          <img src={bici}>
+                          </img>
+                        </div>
+                        <div className="station-details">
+                              <p>{station.extra.address}</p>
+                              <p>Free bikes: {station.free_bikes}</p>
+                        </div>
+
+                    </div>
+                ))}
+              </div>
+            </div>
+            
+            
           </div>
         </div>
-
+        Icons made by <a href="https://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon"> www.flaticon.com</a>        
       </main>
 
     );

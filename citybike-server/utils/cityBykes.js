@@ -1,20 +1,27 @@
 const cityBikesList =[]
-const count=0
+var count=36
 
 const addCityBikes =(cityBikes)=>{
-    if (count<=10){
+    if (cityBikesList.length<20){
+       cityBikesList.push(cityBikes)
+    }else{
+        cityBikesList.splice(0,1)
         cityBikesList.push(cityBikes)
     }
-    // console.log(cityBikesList)
 }
 
-const getCityBikes=({index})=>{
-    const auxList= cityBikesList[index]
-    return({auxList})
+const getCityBikes=(index)=>{
+    const bikesOnStations= cityBikesList[index]
+    return({bikesOnStations})
+}
+
+const getCityBikesSize=()=>{
+    return(cityBikesList.length)
 }
 
 
 module.exports={
     addCityBikes,
-    getCityBikes
+    getCityBikes,
+    getCityBikesSize
 }
